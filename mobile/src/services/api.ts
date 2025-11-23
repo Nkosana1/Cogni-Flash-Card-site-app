@@ -180,7 +180,9 @@ class ApiService {
         timestamp: Date.now(),
         retries: 0,
       };
-      await this.queueAction(action);
+      // Use sync service for better queue management
+      const { syncService } = await import('./SyncService');
+      await syncService.queueChange('create_card', { ...card, deck_id: deckId }, 'high');
       throw new Error('Offline - Card will be created when online');
     }
     return this.client.post(`/decks/${deckId}/cards`, card).then((res) => res.data);
@@ -203,7 +205,9 @@ class ApiService {
         timestamp: Date.now(),
         retries: 0,
       };
-      await this.queueAction(action);
+      // Use sync service for better queue management
+      const { syncService } = await import('./SyncService');
+      await syncService.queueChange('review', payload, 'high');
       // Return optimistic response
       return { message: 'Review queued for sync', queued: true };
     }
