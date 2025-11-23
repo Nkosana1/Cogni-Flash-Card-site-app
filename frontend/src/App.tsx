@@ -1,7 +1,10 @@
 import React from 'react';
 import { BrowserRouter } from 'react-router-dom';
+import { Provider } from 'react-redux';
+import { PersistGate } from 'redux-persist/integration/react';
 import { Toaster } from 'react-hot-toast';
 import { ErrorBoundary } from 'react-error-boundary';
+import { store, persistor } from './store';
 
 function ErrorFallback({ error }: { error: Error }) {
   return (
@@ -23,19 +26,22 @@ function ErrorFallback({ error }: { error: Error }) {
 function App() {
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <BrowserRouter>
-        <div className="min-h-screen bg-gray-50">
-          <Toaster position="top-right" />
-          {/* App content will go here */}
-          <div className="p-8 text-center">
-            <h1 className="text-3xl font-bold text-primary-600 mb-4">NeuroFlash</h1>
-            <p className="text-gray-600">Component library ready for integration</p>
-          </div>
-        </div>
-      </BrowserRouter>
+      <Provider store={store}>
+        <PersistGate loading={null} persistor={persistor}>
+          <BrowserRouter>
+            <div className="min-h-screen bg-gray-50">
+              <Toaster position="top-right" />
+              {/* App content will go here */}
+              <div className="p-8 text-center">
+                <h1 className="text-3xl font-bold text-primary-600 mb-4">NeuroFlash</h1>
+                <p className="text-gray-600">Redux Toolkit state management ready</p>
+              </div>
+            </div>
+          </BrowserRouter>
+        </PersistGate>
+      </Provider>
     </ErrorBoundary>
   );
 }
 
 export default App;
-
