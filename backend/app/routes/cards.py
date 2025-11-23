@@ -1,7 +1,8 @@
 """
 Card operations endpoints
 """
-from flask import Blueprint, request, jsonify
+import json
+from flask import Blueprint, request, jsonify, Response
 from app import db
 from app.models.card import Card, CardType
 from app.models.deck import Deck
@@ -76,9 +77,10 @@ def create_card(deck_id):
     
     card = Card(
         front_content=data['front_content'],
-        back_content=data['back_content'],
+        back_content=data.get('back_content', ''),
         card_type=card_type,
         media_attachments=data.get('media_attachments', []),
+        card_data=data.get('card_data', {}),
         deck_id=deck_id
     )
     
@@ -264,4 +266,166 @@ def batch_create_cards():
         }), 201
     except Exception as e:
         db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@cards_bp.route('/<int:card_id>/reverse', methods=['POST'])
+@jwt_required()
+def create_reverse_card(card_id):
+    """Generate a reverse card from a basic card"""
+    from app.services.card_generation import ReverseCardService
+    
+    user_id = get_jwt_identity()
+    card = Card.query.join(Deck).filter(
+        Card.id == card_id,
+        Deck.user_id == user_id
+    ).first()
+    
+    if not card:
+        return jsonify({'error': 'Card not found'}), 404
+    
+    if card.card_type != CardType.BASIC:
+        return jsonify({'error': 'Reverse cards can only be generated from basic cards'}), 400
+    
+    try:
+        reverse_card = ReverseCardService.generate_reverse_card(card)
+        db.session.add(reverse_card)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Reverse card created',
+            'card': reverse_card.to_dict()
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@cards_bp.route('/decks/<int:deck_id>/generate-multiple-choice', methods=['POST'])
+@jwt_required()
+def generate_multiple_choice_cards(deck_id):
+    """Generate multiple choice cards from all basic cards in a deck"""
+    from app.services.card_generation import MultipleChoiceService
+    
+    user_id = get_jwt_identity()
+    deck = Deck.query.filter_by(id=deck_id, user_id=user_id).first()
+    
+    if not deck:
+        return jsonify({'error': 'Deck not found'}), 404
+    
+    data = request.get_json() or {}
+    num_options = data.get('num_options', 4)
+    
+    try:
+        mc_cards = MultipleChoiceService.generate_from_deck(deck_id, num_options)
+        db.session.add_all(mc_cards)
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'{len(mc_cards)} multiple choice cards created',
+            'cards': [card.to_dict() for card in mc_cards]
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@cards_bp.route('/<int:card_id>/views', methods=['GET'])
+@jwt_required()
+def get_card_views(card_id):
+    """Get card views (for cloze and image occlusion cards)"""
+    from app.services.cloze_card import ClozeCardService
+    from app.services.image_occlusion import ImageOcclusionService
+    
+    user_id = get_jwt_identity()
+    card = Card.query.join(Deck).filter(
+        Card.id == card_id,
+        Deck.user_id == user_id
+    ).first()
+    
+    if not card:
+        return jsonify({'error': 'Card not found'}), 404
+    
+    views = []
+    if card.card_type == CardType.CLOZE:
+        views = ClozeCardService.generate_card_views(card)
+    elif card.card_type == CardType.IMAGE_OCCLUSION:
+        views = ImageOcclusionService.generate_card_views(card)
+    
+    return jsonify({
+        'card_id': card_id,
+        'card_type': card.card_type.value,
+        'views': views
+    }), 200
+
+
+@cards_bp.route('/decks/<int:deck_id>/import', methods=['POST'])
+@jwt_required()
+def import_cards(deck_id):
+    """Import cards from JSON or CSV format"""
+    from app.services.card_import_export import CardImportExportService
+    
+    user_id = get_jwt_identity()
+    data = request.get_json() or {}
+    
+    format_type = data.get('format', 'json').lower()
+    import_data = data.get('data')
+    
+    if not import_data:
+        return jsonify({'error': 'Import data is required'}), 400
+    
+    try:
+        if format_type == 'json':
+            if isinstance(import_data, str):
+                import_data = json.loads(import_data)
+            cards = CardImportExportService.import_cards_from_json(deck_id, import_data, user_id)
+        elif format_type == 'csv':
+            if not isinstance(import_data, str):
+                return jsonify({'error': 'CSV data must be a string'}), 400
+            cards = CardImportExportService.import_cards_from_csv(deck_id, import_data, user_id)
+        else:
+            return jsonify({'error': 'Invalid format. Use "json" or "csv"'}), 400
+        
+        return jsonify({
+            'message': f'{len(cards)} cards imported successfully',
+            'cards': [card.to_dict() for card in cards]
+        }), 201
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@cards_bp.route('/decks/<int:deck_id>/export', methods=['GET'])
+@jwt_required()
+def export_cards(deck_id):
+    """Export deck cards to JSON, CSV, or Anki format"""
+    from app.services.card_import_export import CardImportExportService
+    
+    user_id = get_jwt_identity()
+    deck = Deck.query.filter_by(id=deck_id, user_id=user_id).first()
+    
+    if not deck:
+        return jsonify({'error': 'Deck not found'}), 404
+    
+    format_type = request.args.get('format', 'json').lower()
+    
+    try:
+        if format_type == 'json':
+            data = CardImportExportService.export_deck_to_json(deck_id)
+            return jsonify(data), 200
+        elif format_type == 'csv':
+            csv_data = CardImportExportService.export_deck_to_csv(deck_id)
+            return Response(
+                csv_data,
+                mimetype='text/csv',
+                headers={'Content-Disposition': f'attachment; filename=deck_{deck_id}.csv'}
+            )
+        elif format_type == 'anki':
+            anki_data = CardImportExportService.export_to_anki_format(deck_id)
+            return jsonify({'cards': anki_data}), 200
+        else:
+            return jsonify({'error': 'Invalid format. Use "json", "csv", or "anki"'}), 400
+    except Exception as e:
         return jsonify({'error': str(e)}), 500

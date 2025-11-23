@@ -15,6 +15,8 @@ class CardType(enum.Enum):
     BASIC = 'basic'
     CLOZE = 'cloze'
     IMAGE_OCCLUSION = 'image_occlusion'
+    REVERSE = 'reverse'
+    MULTIPLE_CHOICE = 'multiple_choice'
 
 
 class Card(db.Model):
@@ -52,6 +54,8 @@ class Card(db.Model):
     )
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     media_attachments = db.Column(db.JSON, default=list, nullable=False)
+    # Card-specific data (cloze deletions, occlusion regions, multiple choice options, etc.)
+    card_data = db.Column(db.JSON, default=dict, nullable=False)
     
     # Relationships
     reviews = db.relationship(
@@ -68,16 +72,13 @@ class Card(db.Model):
     
     def validate(self) -> tuple:
         """
-        Validate card data.
+        Validate card data based on card type.
         
         Returns:
             Tuple of (is_valid, error_message)
         """
         if not self.front_content or len(self.front_content.strip()) == 0:
             return False, "Front content is required"
-        
-        if not self.back_content or len(self.back_content.strip()) == 0:
-            return False, "Back content is required"
         
         if not isinstance(self.card_type, CardType):
             try:
@@ -87,6 +88,33 @@ class Card(db.Model):
         
         if self.media_attachments and not isinstance(self.media_attachments, list):
             return False, "Media attachments must be a list"
+        
+        # Type-specific validation
+        if self.card_type == CardType.CLOZE:
+            from app.services.cloze_card import ClozeCardService
+            is_valid, error = ClozeCardService.validate_cloze_syntax(self.front_content)
+            if not is_valid:
+                return False, f"Cloze syntax error: {error}"
+        
+        elif self.card_type == CardType.IMAGE_OCCLUSION:
+            if not self.card_data:
+                return False, "Image occlusion cards require card_data with image and regions"
+            from app.services.image_occlusion import ImageOcclusionService
+            is_valid, error = ImageOcclusionService.validate_occlusion_data(self.card_data)
+            if not is_valid:
+                return False, f"Image occlusion error: {error}"
+        
+        elif self.card_type == CardType.BASIC:
+            if not self.back_content or len(self.back_content.strip()) == 0:
+                return False, "Back content is required for basic cards"
+        
+        elif self.card_type == CardType.REVERSE:
+            # Reverse cards may not have back_content if generated
+            pass
+        
+        elif self.card_type == CardType.MULTIPLE_CHOICE:
+            if not self.card_data or 'options' not in self.card_data:
+                return False, "Multiple choice cards require options in card_data"
         
         return True, None
     
@@ -149,6 +177,7 @@ class Card(db.Model):
             'back_content': self.back_content,
             'card_type': self.card_type.value if isinstance(self.card_type, CardType) else self.card_type,
             'media_attachments': self.media_attachments or [],
+            'card_data': self.card_data or {},
             'review_count': self.get_review_count(),
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
