@@ -26,11 +26,33 @@ def create_app(config_name='default'):
     from app.routes.decks import decks_bp
     from app.routes.cards import cards_bp
     from app.routes.reviews import reviews_bp
+    from app.routes.study import study_bp
+    from app.routes.analytics import analytics_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(decks_bp, url_prefix='/api/decks')
-    app.register_blueprint(cards_bp, url_prefix='/api/cards')
+    app.register_blueprint(cards_bp, url_prefix='/api')  # Cards routes use /api/decks/<id>/cards
     app.register_blueprint(reviews_bp, url_prefix='/api/reviews')
+    app.register_blueprint(study_bp, url_prefix='/api/study')
+    app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
+    
+    # Error handlers
+    @app.errorhandler(404)
+    def not_found(error):
+        return {'error': 'Resource not found'}, 404
+    
+    @app.errorhandler(500)
+    def internal_error(error):
+        db.session.rollback()
+        return {'error': 'Internal server error'}, 500
+    
+    @app.errorhandler(400)
+    def bad_request(error):
+        return {'error': 'Bad request'}, 400
+    
+    @app.errorhandler(401)
+    def unauthorized(error):
+        return {'error': 'Unauthorized'}, 401
     
     # Health check endpoint
     @app.route('/api/health')
