@@ -135,7 +135,8 @@ def get_due_cards():
     deck_id = request.args.get('deck_id', type=int)
     limit = request.args.get('limit', type=int)
     
-    due_cards = SpacedRepetitionService.get_due_cards(user_id, deck_id, limit).all()
+    service = SpacedRepetitionService(db.session)
+    due_cards = service.get_due_cards(user_id, deck_id, limit)
     
     return jsonify([card.to_dict() for card in due_cards]), 200
 

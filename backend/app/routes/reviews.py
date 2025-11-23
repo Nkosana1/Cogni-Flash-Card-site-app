@@ -23,42 +23,33 @@ def create_review():
     if not isinstance(quality, int) or quality < 0 or quality > 5:
         return jsonify({'error': 'Quality must be an integer between 0 and 5'}), 400
     
-    # Verify card belongs to user
-    card = Card.query.join(Deck).filter(
-        Card.id == data['card_id'],
-        Deck.user_id == user_id
-    ).first()
-    
-    if not card:
-        return jsonify({'error': 'Card not found'}), 404
-    
-    # Get latest review to pass current state
-    last_review = SpacedRepetitionService.get_latest_review(card.id, user_id)
-    
-    # Calculate new spaced repetition parameters and create CardReview
-    result = SpacedRepetitionService.calculate_next_review(
-        card=card,
-        user_id=user_id,
-        quality=quality,
-        last_review=last_review
-    )
-    
-    card_review = result['card_review']
-    
-    # Validate the review
-    is_valid, error_msg = card_review.validate()
-    if not is_valid:
-        return jsonify({'error': error_msg}), 400
-    
     try:
-        db.session.add(card_review)
-        db.session.commit()
+        service = SpacedRepetitionService(db.session)
+        result = service.process_review(
+            card_id=data['card_id'],
+            user_id=user_id,
+            quality=quality
+        )
+        
+        # Get updated card
+        card = Card.query.get(data['card_id'])
         
         return jsonify({
-            'review': card_review.to_dict(),
-            'card': card.to_dict(),
-            'next_review': result['next_review'].isoformat()
+            'review': {
+                'id': result['review_id'],
+                'card_id': result['card_id'],
+                'user_id': result['user_id'],
+                'quality': result['quality'],
+                'ease_factor': result['ease_factor'],
+                'interval': result['interval'],
+                'repetitions': result['repetitions'],
+                'next_review': result['next_review']
+            },
+            'card': card.to_dict() if card else None,
+            'previous_state': result['previous_state']
         }), 201
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -71,7 +62,8 @@ def get_review_stats():
     user_id = get_jwt_identity()
     deck_id = request.args.get('deck_id', type=int)
     
-    stats = SpacedRepetitionService.get_review_stats(user_id, deck_id)
+    service = SpacedRepetitionService(db.session)
+    stats = service.get_review_stats(user_id, deck_id)
     
     return jsonify(stats), 200
 
@@ -99,4 +91,17 @@ def get_review_history():
     
     reviews = query.all()
     return jsonify([review.to_dict() for review in reviews]), 200
+
+
+@reviews_bp.route('/queue', methods=['GET'])
+@jwt_required()
+def get_study_queue():
+    """Get optimized study queue with due and new cards"""
+    user_id = get_jwt_identity()
+    deck_id = request.args.get('deck_id', type=int)
+    
+    service = SpacedRepetitionService(db.session)
+    queue = service.get_study_queue(user_id, deck_id)
+    
+    return jsonify(queue), 200
 
