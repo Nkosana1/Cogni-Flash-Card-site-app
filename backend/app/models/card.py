@@ -1,40 +1,156 @@
+"""
+Card model for individual flashcards.
+
+This model represents a single flashcard with front/back content,
+card type (basic, cloze, image_occlusion), and media attachments.
+"""
 from datetime import datetime
+from typing import Dict, Any, List, Optional
 from app import db
+import enum
+
+
+class CardType(enum.Enum):
+    """Enumeration for card types."""
+    BASIC = 'basic'
+    CLOZE = 'cloze'
+    IMAGE_OCCLUSION = 'image_occlusion'
 
 
 class Card(db.Model):
-    """Card model for individual flashcards"""
+    """
+    Card model for individual flashcards.
+    
+    Attributes:
+        id: Primary key
+        deck_id: Foreign key to Deck (indexed)
+        front_content: Front side content of the card
+        back_content: Back side content of the card
+        card_type: Type of card (basic, cloze, image_occlusion)
+        created_at: Creation timestamp
+        media_attachments: JSON array of media file references
+    
+    Relationships:
+        - Many-to-one with Deck
+        - One-to-many with CardReview
+    """
     __tablename__ = 'cards'
     
-    id = db.Column(db.Integer, primary_key=True)
-    front = db.Column(db.Text, nullable=False)
-    back = db.Column(db.Text, nullable=False)
-    deck_id = db.Column(db.Integer, db.ForeignKey('decks.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Spaced repetition fields (SM-2 algorithm)
-    ease_factor = db.Column(db.Float, default=2.5)  # EF in SM-2
-    interval = db.Column(db.Integer, default=1)  # Days until next review
-    repetitions = db.Column(db.Integer, default=0)  # Number of successful reviews
-    next_review = db.Column(db.DateTime, default=datetime.utcnow)  # Next scheduled review
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    deck_id = db.Column(
+        db.Integer,
+        db.ForeignKey('decks.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True
+    )
+    front_content = db.Column(db.Text, nullable=False)
+    back_content = db.Column(db.Text, nullable=False)
+    card_type = db.Column(
+        db.Enum(CardType, name='card_type_enum'),
+        default=CardType.BASIC,
+        nullable=False
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    media_attachments = db.Column(db.JSON, default=list, nullable=False)
     
     # Relationships
-    reviews = db.relationship('Review', backref='card', lazy='dynamic', cascade='all, delete-orphan')
+    reviews = db.relationship(
+        'CardReview',
+        backref='card',
+        lazy='dynamic',
+        cascade='all, delete-orphan'
+    )
     
-    def to_dict(self, include_reviews=False):
-        """Convert card to dictionary"""
+    # Indexes
+    __table_args__ = (
+        db.Index('idx_card_deck_type', 'deck_id', 'card_type'),
+    )
+    
+    def validate(self) -> tuple:
+        """
+        Validate card data.
+        
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        if not self.front_content or len(self.front_content.strip()) == 0:
+            return False, "Front content is required"
+        
+        if not self.back_content or len(self.back_content.strip()) == 0:
+            return False, "Back content is required"
+        
+        if not isinstance(self.card_type, CardType):
+            try:
+                self.card_type = CardType(self.card_type)
+            except ValueError:
+                return False, f"Invalid card type. Must be one of: {[t.value for t in CardType]}"
+        
+        if self.media_attachments and not isinstance(self.media_attachments, list):
+            return False, "Media attachments must be a list"
+        
+        return True, None
+    
+    def add_media(self, media_url: str, media_type: str = 'image') -> None:
+        """
+        Add a media attachment to the card.
+        
+        Args:
+            media_url: URL or path to media file
+            media_type: Type of media (image, audio, video)
+        """
+        if not self.media_attachments:
+            self.media_attachments = []
+        
+        media_item = {
+            'url': media_url,
+            'type': media_type,
+            'added_at': datetime.utcnow().isoformat()
+        }
+        self.media_attachments.append(media_item)
+    
+    def remove_media(self, media_url: str) -> None:
+        """
+        Remove a media attachment from the card.
+        
+        Args:
+            media_url: URL or path to media file to remove
+        """
+        if not self.media_attachments:
+            return
+        
+        self.media_attachments = [
+            m for m in self.media_attachments
+            if m.get('url') != media_url
+        ]
+    
+    def get_review_count(self) -> int:
+        """
+        Get the number of reviews for this card.
+        
+        Returns:
+            Number of reviews
+        """
+        return self.reviews.count() if hasattr(self, 'reviews') else 0
+    
+    def to_dict(self, include_reviews: bool = False) -> Dict[str, Any]:
+        """
+        Convert card to dictionary for API responses.
+        
+        Args:
+            include_reviews: Whether to include review data
+        
+        Returns:
+            Dictionary representation of card
+        """
         data = {
             'id': self.id,
-            'front': self.front,
-            'back': self.back,
             'deck_id': self.deck_id,
-            'ease_factor': self.ease_factor,
-            'interval': self.interval,
-            'repetitions': self.repetitions,
-            'next_review': self.next_review.isoformat() if self.next_review else None,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
+            'front_content': self.front_content,
+            'back_content': self.back_content,
+            'card_type': self.card_type.value if isinstance(self.card_type, CardType) else self.card_type,
+            'media_attachments': self.media_attachments or [],
+            'review_count': self.get_review_count(),
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
         
         if include_reviews:
@@ -42,6 +158,5 @@ class Card(db.Model):
         
         return data
     
-    def __repr__(self):
-        return f'<Card {self.id}: {self.front[:50]}>'
-
+    def __repr__(self) -> str:
+        return f'<Card {self.id}: {self.front_content[:50]}...>'
