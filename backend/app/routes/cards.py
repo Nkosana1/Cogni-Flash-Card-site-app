@@ -8,7 +8,8 @@ from app.models.card import Card, CardType
 from app.models.deck import Deck
 from app.schemas.card import CardCreateSchema, CardUpdateSchema, CardBatchSchema
 from app.utils.pagination import paginate_query
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
+from app.utils.auth import get_current_user_id
 from marshmallow import ValidationError
 
 cards_bp = Blueprint('cards', __name__)
@@ -28,7 +29,7 @@ def get_deck_cards(deck_id):
         - 200: List of cards with pagination
         - 404: Deck not found
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     
     # Verify deck ownership
     deck = Deck.query.filter_by(id=deck_id, user_id=user_id).first()
@@ -58,7 +59,7 @@ def create_card(deck_id):
         - 404: Deck not found
         - 400: Validation error
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     
     # Verify deck ownership
     deck = Deck.query.filter_by(id=deck_id, user_id=user_id).first()
@@ -108,7 +109,7 @@ def get_card(card_id):
         - 200: Card data
         - 404: Card not found
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     card = Card.query.join(Deck).filter(
         Card.id == card_id,
         Deck.user_id == user_id
@@ -137,7 +138,7 @@ def update_card(card_id):
         - 404: Card not found
         - 400: Validation error
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     card = Card.query.join(Deck).filter(
         Card.id == card_id,
         Deck.user_id == user_id
@@ -186,7 +187,7 @@ def delete_card(card_id):
         - 200: Card deleted successfully
         - 404: Card not found
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     card = Card.query.join(Deck).filter(
         Card.id == card_id,
         Deck.user_id == user_id
@@ -223,7 +224,7 @@ def batch_create_cards():
         - 404: Deck not found
         - 400: Validation error
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     schema = CardBatchSchema()
     
     try:
@@ -275,7 +276,7 @@ def create_reverse_card(card_id):
     """Generate a reverse card from a basic card"""
     from app.services.card_generation import ReverseCardService
     
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     card = Card.query.join(Deck).filter(
         Card.id == card_id,
         Deck.user_id == user_id
@@ -307,7 +308,7 @@ def generate_multiple_choice_cards(deck_id):
     """Generate multiple choice cards from all basic cards in a deck"""
     from app.services.card_generation import MultipleChoiceService
     
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     deck = Deck.query.filter_by(id=deck_id, user_id=user_id).first()
     
     if not deck:
@@ -337,7 +338,7 @@ def get_card_views(card_id):
     from app.services.cloze_card import ClozeCardService
     from app.services.image_occlusion import ImageOcclusionService
     
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     card = Card.query.join(Deck).filter(
         Card.id == card_id,
         Deck.user_id == user_id
@@ -365,7 +366,7 @@ def import_cards(deck_id):
     """Import cards from JSON or CSV format"""
     from app.services.card_import_export import CardImportExportService
     
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     data = request.get_json() or {}
     
     format_type = data.get('format', 'json').lower()
@@ -403,7 +404,7 @@ def export_cards(deck_id):
     """Export deck cards to JSON, CSV, or Anki format"""
     from app.services.card_import_export import CardImportExportService
     
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     deck = Deck.query.filter_by(id=deck_id, user_id=user_id).first()
     
     if not deck:

@@ -9,7 +9,8 @@ from app.models.card import Card
 from app.models.card_review import CardReview
 from app.models.study_session import StudySession
 from app.services.spaced_repetition import SpacedRepetitionService
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
+from app.utils.auth import get_current_user_id
 
 analytics_bp = Blueprint('analytics', __name__)
 
@@ -23,7 +24,7 @@ def get_overview():
     Returns:
         - 200: Overview statistics
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     service = SpacedRepetitionService(db.session)
     
     # Get basic stats
@@ -89,7 +90,7 @@ def get_deck_stats(deck_id):
         - 200: Deck statistics
         - 404: Deck not found
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     
     # Verify deck ownership
     deck = Deck.query.filter_by(id=deck_id, user_id=user_id).first()
@@ -164,7 +165,7 @@ def get_streak():
     Returns:
         - 200: Streak information
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     
     streak = _calculate_streak(user_id)
     

@@ -4,7 +4,8 @@ from app.models.card import Card
 from app.models.deck import Deck
 from app.models.card_review import CardReview
 from app.services.spaced_repetition import SpacedRepetitionService
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
+from app.utils.auth import get_current_user_id
 
 reviews_bp = Blueprint('reviews', __name__)
 
@@ -13,7 +14,7 @@ reviews_bp = Blueprint('reviews', __name__)
 @jwt_required()
 def create_review():
     """Create a review for a card and update spaced repetition parameters"""
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     data = request.get_json()
     
     if not data or 'card_id' not in data or 'quality' not in data:
@@ -59,7 +60,7 @@ def create_review():
 @jwt_required()
 def get_review_stats():
     """Get review statistics"""
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     deck_id = request.args.get('deck_id', type=int)
     
     service = SpacedRepetitionService(db.session)
@@ -72,7 +73,7 @@ def get_review_stats():
 @jwt_required()
 def get_review_history():
     """Get review history for cards"""
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     card_id = request.args.get('card_id', type=int)
     deck_id = request.args.get('deck_id', type=int)
     limit = request.args.get('limit', type=int, default=50)
@@ -97,7 +98,7 @@ def get_review_history():
 @jwt_required()
 def get_study_queue():
     """Get optimized study queue with due and new cards"""
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     deck_id = request.args.get('deck_id', type=int)
     
     service = SpacedRepetitionService(db.session)

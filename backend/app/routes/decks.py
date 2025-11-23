@@ -7,7 +7,8 @@ from app.models.deck import Deck
 from app.models.card import Card
 from app.schemas.deck import DeckCreateSchema, DeckUpdateSchema
 from app.utils.pagination import paginate_query
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
+from app.utils.auth import get_current_user_id
 from marshmallow import ValidationError
 from sqlalchemy import or_
 
@@ -27,7 +28,7 @@ def get_decks():
     Returns:
         - 200: List of decks with pagination metadata
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     query = Deck.query.filter_by(user_id=user_id).order_by(Deck.created_at.desc())
     
     result = paginate_query(query)
@@ -51,7 +52,7 @@ def create_deck():
         - 201: Deck created successfully
         - 400: Validation error
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     schema = DeckCreateSchema()
     
     try:
@@ -91,7 +92,7 @@ def get_deck(deck_id):
         - 200: Deck data with cards
         - 404: Deck not found
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     deck = Deck.query.filter_by(id=deck_id, user_id=user_id).first()
     
     if not deck:
@@ -118,7 +119,7 @@ def update_deck(deck_id):
         - 404: Deck not found
         - 400: Validation error
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     deck = Deck.query.filter_by(id=deck_id, user_id=user_id).first()
     
     if not deck:
@@ -166,7 +167,7 @@ def delete_deck(deck_id):
         - 200: Deck deleted successfully
         - 404: Deck not found
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     deck = Deck.query.filter_by(id=deck_id, user_id=user_id).first()
     
     if not deck:
@@ -233,7 +234,7 @@ def clone_deck(deck_id):
         - 404: Deck not found or not public
         - 400: Deck already owned by user
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     
     # Get public deck
     deck = Deck.query.filter_by(id=deck_id, is_public=True).first()

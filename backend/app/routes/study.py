@@ -9,7 +9,8 @@ from app.models.deck import Deck
 from app.services.spaced_repetition import SpacedRepetitionService
 from app.schemas.study import ReviewSchema, StudySessionStartSchema
 from app.utils.rate_limit import rate_limit
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
+from app.utils.auth import get_current_user_id
 from marshmallow import ValidationError
 
 study_bp = Blueprint('study', __name__)
@@ -28,7 +29,7 @@ def get_study_queue():
     Returns:
         - 200: Study queue with due and new cards
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     deck_id = request.args.get('deck_id', type=int)
     
     service = SpacedRepetitionService(db.session)
@@ -52,7 +53,7 @@ def submit_review():
         - 201: Review submitted successfully
         - 400: Validation error
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     schema = ReviewSchema()
     
     try:
@@ -110,7 +111,7 @@ def get_current_session():
     Returns:
         - 200: Current session data or null if no active session
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     
     session = StudySession.query.filter_by(
         user_id=user_id,
@@ -137,7 +138,7 @@ def start_session():
         - 201: Session started successfully
         - 400: Validation error or active session exists
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     schema = StudySessionStartSchema()
     
     try:
@@ -191,7 +192,7 @@ def end_session():
         - 200: Session ended successfully
         - 404: No active session found
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     
     session = StudySession.query.filter_by(
         user_id=user_id,

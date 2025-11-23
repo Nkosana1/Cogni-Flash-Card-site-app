@@ -15,6 +15,7 @@ from flask_jwt_extended import (
     set_refresh_cookies,
     unset_refresh_cookies
 )
+from app.utils.auth import get_current_user_id
 from marshmallow import ValidationError
 
 auth_bp = Blueprint('auth', __name__)
@@ -65,9 +66,9 @@ def register():
         
         db.session.commit()
         
-        # Generate tokens
-        access_token = create_access_token(identity=user.id)
-        refresh_token = create_refresh_token(identity=user.id)
+        # Generate tokens (identity must be a string)
+        access_token = create_access_token(identity=str(user.id))
+        refresh_token = create_refresh_token(identity=str(user.id))
         
         response = jsonify({
             'message': 'User created successfully',
@@ -113,9 +114,9 @@ def login():
     user.update_last_login()
     db.session.commit()
     
-    # Generate tokens
-    access_token = create_access_token(identity=user.id)
-    refresh_token = create_refresh_token(identity=user.id)
+    # Generate tokens (identity must be a string)
+    access_token = create_access_token(identity=str(user.id))
+    refresh_token = create_refresh_token(identity=str(user.id))
     
     response = jsonify({
         'message': 'Login successful',
@@ -156,7 +157,7 @@ def get_current_user():
         - 200: User data
         - 404: User not found
     """
-    user_id = get_jwt_identity()
+    user_id = get_current_user_id()
     user = User.query.get(user_id)
     
     if not user:
