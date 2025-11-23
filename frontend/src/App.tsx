@@ -108,7 +108,12 @@ function App() {
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <Provider store={store}>
         <PersistGate loading={null} persistor={persistor}>
-          <BrowserRouter>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
             <div className="min-h-screen bg-gray-50">
               <Toaster position="top-right" />
               <AppRoutes />

@@ -5,7 +5,7 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import { Deck } from '@/types';
 
 const baseQuery = fetchBaseQuery({
-  baseUrl: '/api/decks',
+  baseUrl: (import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api/decks',
   prepareHeaders: (headers, { getState }) => {
     const token = (getState() as any).auth?.token || localStorage.getItem('token');
     if (token) {
