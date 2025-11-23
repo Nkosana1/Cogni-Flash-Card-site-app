@@ -1,5 +1,6 @@
 import { useInView } from 'react-intersection-observer';
 import { motion } from 'framer-motion';
+import StepCard from '@/components/marketing/StepCard';
 
 const steps = [
   {
@@ -53,31 +54,19 @@ export default function HowItWorksSection() {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           {steps.map((step, index) => (
-            <motion.div
-              key={step.number}
-              initial={{ opacity: 0, y: 20 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: index * 0.1 }}
-              className="relative"
-            >
+            <div key={step.number} className="relative">
               {/* Connector line */}
               {index < steps.length - 1 && (
                 <div className="hidden lg:block absolute top-12 left-full w-full h-0.5 bg-primary-200 -z-10" />
               )}
-
-              <div className="text-center">
-                <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-primary-600 text-white text-2xl font-bold mb-4 shadow-lg">
-                  {step.icon}
-                </div>
-                <div className="text-primary-600 text-sm font-semibold mb-2">
-                  {step.number}
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  {step.title}
-                </h3>
-                <p className="text-gray-600">{step.description}</p>
-              </div>
-            </motion.div>
+              <StepCard
+                number={step.number}
+                title={step.title}
+                description={step.description}
+                icon={step.icon}
+                delay={index * 0.1}
+              />
+            </div>
           ))}
         </div>
       </div>

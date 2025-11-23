@@ -1,5 +1,6 @@
 import { useInView } from 'react-intersection-observer';
 import { motion } from 'framer-motion';
+import FeatureCard from '@/components/marketing/FeatureCard';
 
 const features = [
   {
@@ -59,19 +60,14 @@ export default function FeaturesSection() {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {features.map((feature, index) => (
-            <motion.div
+            <FeatureCard
               key={feature.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: index * 0.1 }}
-              className="p-6 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
-            >
-              <div className="text-4xl mb-4">{feature.icon}</div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                {feature.title}
-              </h3>
-              <p className="text-gray-600">{feature.description}</p>
-            </motion.div>
+              icon={feature.icon}
+              title={feature.title}
+              description={feature.description}
+              animation="slide"
+              delay={index * 0.1}
+            />
           ))}
         </div>
       </div>
