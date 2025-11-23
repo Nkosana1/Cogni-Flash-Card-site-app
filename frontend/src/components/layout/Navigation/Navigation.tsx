@@ -1,17 +1,24 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/utils/cn';
+import { useAuth } from '@/store/hooks';
 
 export interface NavigationProps {
-  user?: {
-    username: string;
-    email: string;
-  };
-  onLogout?: () => void;
   className?: string;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ user, onLogout, className }) => {
+export const Navigation: React.FC<NavigationProps> = ({ className }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
+  const isActive = (path: string) => location.pathname === path;
+
   return (
     <nav
       className={cn(
@@ -24,48 +31,73 @@ export const Navigation: React.FC<NavigationProps> = ({ user, onLogout, classNam
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link to="/" className="flex items-center">
+            <Link to="/dashboard" className="flex items-center">
               <span className="text-2xl font-bold text-primary-600">NeuroFlash</span>
             </Link>
-            <div className="hidden md:ml-10 md:flex md:space-x-4">
-              <Link
-                to="/dashboard"
-                className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100"
-              >
-                Dashboard
-              </Link>
-              <Link
-                to="/study"
-                className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100"
-              >
-                Study
-              </Link>
-              <Link
-                to="/decks"
-                className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100"
-              >
-                Decks
-              </Link>
-              <Link
-                to="/analytics"
-                className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-primary-600 hover:bg-gray-100"
-              >
-                Analytics
-              </Link>
-            </div>
+            {user && (
+              <div className="hidden md:ml-10 md:flex md:space-x-4">
+                <Link
+                  to="/dashboard"
+                  className={cn(
+                    'px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                    isActive('/dashboard')
+                      ? 'text-primary-600 bg-primary-50'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-gray-100'
+                  )}
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  to="/study"
+                  className={cn(
+                    'px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                    isActive('/study')
+                      ? 'text-primary-600 bg-primary-50'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-gray-100'
+                  )}
+                >
+                  Study
+                </Link>
+                <Link
+                  to="/decks"
+                  className={cn(
+                    'px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                    isActive('/decks')
+                      ? 'text-primary-600 bg-primary-50'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-gray-100'
+                  )}
+                >
+                  Decks
+                </Link>
+                <Link
+                  to="/analytics"
+                  className={cn(
+                    'px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                    isActive('/analytics')
+                      ? 'text-primary-600 bg-primary-50'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-gray-100'
+                  )}
+                >
+                  Analytics
+                </Link>
+              </div>
+            )}
           </div>
           <div className="flex items-center">
             {user ? (
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-700">{user.username}</span>
-                {onLogout && (
-                  <button
-                    onClick={onLogout}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-primary-600"
-                  >
-                    Logout
-                  </button>
-                )}
+                <Link
+                  to="/settings"
+                  className="text-sm text-gray-700 hover:text-primary-600"
+                >
+                  {user.username}
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-primary-600"
+                >
+                  Logout
+                </button>
               </div>
             ) : (
               <Link

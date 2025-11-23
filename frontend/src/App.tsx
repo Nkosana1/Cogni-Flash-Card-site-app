@@ -1,10 +1,20 @@
 import React from 'react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { Toaster } from 'react-hot-toast';
 import { ErrorBoundary } from 'react-error-boundary';
 import { store, persistor } from './store';
+import { useAppSelector } from './hooks/useAppSelector';
+
+// Pages
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import DashboardPage from './pages/DashboardPage';
+import StudyPage from './pages/StudyPage';
+import DecksPage from './pages/DecksPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import SettingsPage from './pages/SettingsPage';
 
 function ErrorFallback({ error }: { error: Error }) {
   return (
@@ -23,6 +33,76 @@ function ErrorFallback({ error }: { error: Error }) {
   );
 }
 
+// Protected Route Component
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/study"
+        element={
+          <ProtectedRoute>
+            <StudyPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/study/:deckId?"
+        element={
+          <ProtectedRoute>
+            <StudyPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/decks"
+        element={
+          <ProtectedRoute>
+            <DecksPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/analytics"
+        element={
+          <ProtectedRoute>
+            <AnalyticsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <SettingsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
+  );
+}
+
 function App() {
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
@@ -31,11 +111,7 @@ function App() {
           <BrowserRouter>
             <div className="min-h-screen bg-gray-50">
               <Toaster position="top-right" />
-              {/* App content will go here */}
-              <div className="p-8 text-center">
-                <h1 className="text-3xl font-bold text-primary-600 mb-4">NeuroFlash</h1>
-                <p className="text-gray-600">Redux Toolkit state management ready</p>
-              </div>
+              <AppRoutes />
             </div>
           </BrowserRouter>
         </PersistGate>
