@@ -24,6 +24,9 @@ class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG = True
     FLASK_ENV = 'development'
+    # Use SQLite for easier local development (no PostgreSQL setup required)
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        'sqlite:///neuroflash_dev.db'
 
 
 class ProductionConfig(Config):

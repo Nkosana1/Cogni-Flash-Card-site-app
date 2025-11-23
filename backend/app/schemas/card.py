@@ -10,11 +10,11 @@ class CardCreateSchema(Schema):
     front_content = fields.Str(required=True, validate=validate.Length(min=1))
     back_content = fields.Str(validate=validate.Length(min=1))  # Optional for some card types
     card_type = fields.Str(
-        missing='basic',
+        load_default='basic',
         validate=validate.OneOf(['basic', 'cloze', 'image_occlusion', 'reverse', 'multiple_choice'])
     )
-    media_attachments = fields.List(fields.Dict(), missing=list)
-    card_data = fields.Dict(missing=dict)  # Card-specific data (occlusion regions, MC options, etc.)
+    media_attachments = fields.List(fields.Dict(), load_default=list)
+    card_data = fields.Dict(load_default=dict)  # Card-specific data (occlusion regions, MC options, etc.)
 
 
 class CardUpdateSchema(Schema):
@@ -30,7 +30,7 @@ class CardBatchItemSchema(Schema):
     """Schema for a single card in batch creation"""
     front_content = fields.Str(required=True, validate=validate.Length(min=1))
     back_content = fields.Str(required=True, validate=validate.Length(min=1))
-    card_type = fields.Str(missing='basic', validate=validate.OneOf(['basic', 'cloze', 'image_occlusion']))
+    card_type = fields.Str(load_default='basic', validate=validate.OneOf(['basic', 'cloze', 'image_occlusion']))
 
 
 class CardBatchSchema(Schema):
